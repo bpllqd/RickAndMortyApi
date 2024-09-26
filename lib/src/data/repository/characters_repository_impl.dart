@@ -1,38 +1,37 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
 
-import 'package:kdigital_test/src/data/models/character.dart';
-import 'package:kdigital_test/src/data/repository/characters_repository.dart';
-import 'package:http/http.dart';
+import 'package:dartz/dartz.dart';
+import 'package:injectable/injectable.dart';
+import 'package:kdigital_test/src/data/datasources/remote/characters_remote_datasource.dart';
+import 'package:kdigital_test/src/data/models/character_mapper.dart';
+import 'package:kdigital_test/src/domain/entities/character_entity.dart';
+import 'package:kdigital_test/src/domain/entities/charcter_with_page_entity.dart';
+import 'package:kdigital_test/src/domain/repository/characters_repository.dart';
+import 'package:kdigital_test/src/utils/exceptions.dart';
+import 'package:kdigital_test/src/utils/failure.dart';
 
+@Injectable(as: CharactersRepository)
 class CharactersRepositoryImpl implements CharactersRepository {
-  final Client client;
+  final CharactersRemoteDatasource _api;
 
-  CharactersRepositoryImpl(this.client);
+  CharactersRepositoryImpl({required CharactersRemoteDatasource api})
+      : _api = api;
 
   @override
-  Future<List<Character>?> getCharacters(int page) async {
-    var client = Client();
-    final charResult = await client.get(
-      Uri.parse("https://rickandmortyapi.com/api/character/?page=$page"),
-    );
-    final jsonMap = await json.decode(charResult.body) as Map<String, dynamic>;
+  Future<Either<Failure, CharcterWithPageEntity>> getCharacters(
+      int page) async {
+    try {
+      final apiResult = await _api.getCharacters(page);
+      final List<CharacterEntity> characters = List.of(apiResult.characters)
+          .map((value) => CharacterMapper.toEntityFromModel(value))
+          .toList();
 
-    final bool showMockedError = Random().nextBool();
-    print("Kdigital test log: showMockedError = $showMockedError");
-    if (showMockedError) {
-      return Future.delayed(
-        const Duration(seconds: 5),
-        () => null,
-      );
+      return Right(CharcterWithPageEntity(
+          characters: characters, page: apiResult.pages));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.toString()));
+    } catch (e) {
+      return Left(Failure(e.toString()));
     }
-    return Future.value(
-      List.of(
-        (jsonMap["results"] as List<dynamic>).map(
-          (value) => Character.fromJson(value),
-        ),
-      ),
-    );
   }
 }

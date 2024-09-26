@@ -1,13 +1,15 @@
-import 'package:kdigital_test/src/data/repository/characters_repository.dart';
-import 'package:kdigital_test/src/data/repository/characters_repository_impl.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart';
+import 'package:injectable/injectable.dart';
+import 'main_di_module.config.dart';
 
-class MainDIModule {
-  void configure(GetIt getIt) {
-    final httpClient = Client();
+final getIt = GetIt.instance;
 
-    getIt.registerLazySingleton<CharactersRepository>(
-        () => CharactersRepositoryImpl(httpClient));
-  }
+@module
+abstract class RegisterClientModule {
+  @singleton
+  Client get client => Client();
 }
+
+@InjectableInit()
+void configureDependencies() => getIt.init();
